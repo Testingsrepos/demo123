@@ -1,8 +1,8 @@
 name: Enforce Code Owner Reviews
 
 on:
-  pull_request:
-    types: [opened, edited, review_requested, ready_for_review]
+  pull_request_review:
+    types: [submitted] # Trigger workflow when a review is submitted
 
 jobs:
   validate:
@@ -36,7 +36,3 @@ jobs:
           else
             echo "Code owner validation passed."
           fi
-
-      - name: Set Status Check
-        if: success()
-        run: echo "Code Owner Validation Passed!"

@@ -15,13 +15,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Fetch reviews and output to a file
           curl -H "Authorization: token $GITHUB_TOKEN" \
                -H "Accept: application/vnd.github.v3+json" \
                https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
             | jq -r '.[] | select(.state == "APPROVED") | .user.login' > approvals.json
 
-          # Validate that both reviewers are code owners (custom logic here)
+          # Debug: Print approvals
+          echo "Approved reviewers:"
+          cat approvals.json
+
+          # Validate that both reviewers are code owners
           CODE_OWNERS=$(cat approvals.json | grep -E "teamA|teamB" | wc -l)
+
+          echo "Code Owner Approvals: $CODE_OWNERS"
 
           if [ "$CODE_OWNERS" -lt 2 ]; then
             echo "Both approvals must be from code owners!"

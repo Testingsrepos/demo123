@@ -1,0 +1,35 @@
+name: Enforce Code Owner Reviews
+
+on:
+  pull_request:
+    types: [opened, edited, review_requested, ready_for_review]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Get Pull Request Reviews
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
+            | jq -r '.[] | select(.state == "APPROVED") | .user.login' > approvals.json
+
+          # Validate that both reviewers are code owners (custom logic here)
+          CODE_OWNERS=$(cat approvals.json | grep -E "teamA|teamB" | wc -l)
+
+          if [ "$CODE_OWNERS" -lt 2 ]; then
+            echo "Both approvals must be from code owners!"
+            exit 1
+          else
+            echo "Code owner validation passed."
+          fi
+
+      - name: Set Status Check
+        if: success()
+        run: echo "Code Owner Validation Passed!"

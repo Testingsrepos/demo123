@@ -1,0 +1,47 @@
+name: Enforce Only CodeOwner Approvals
+
+on:
+  pull_request:
+    types: [opened, edited, ready_for_review, synchronize] # Trigger on PR events
+
+jobs:
+  enforce-codeowners:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Approvals from CodeOwners
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const CODEOWNERS = ['kopparthi95', 'Shyamala154']; // Added CodeOwner users
+            const pullNumber = context.payload.pull_request.number;
+
+            // Get all reviews for the PR
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+
+            // Filter approved reviews and unique users
+            const approvedBy = reviews
+              .filter(review => review.state === 'APPROVED')
+              .map(review => review.user.login);
+
+            const uniqueApprovers = [...new Set(approvedBy)]; // Ensure unique approvals
+            const nonCodeOwnerApprovers = uniqueApprovers.filter(user => !CODEOWNERS.includes(user));
+
+            // Count CodeOwner approvals
+            const codeOwnerApprovals = uniqueApprovers.filter(user => CODEOWNERS.includes(user));
+
+            console.log('All Approvers:', uniqueApprovers);
+            console.log('CodeOwner Approvers:', codeOwnerApprovals);
+
+            // Fail if non-CodeOwner approvals exist or not enough CodeOwner approvals
+            if (nonCodeOwnerApprovers.length > 0) {
+              core.setFailed(`Approvals from non-CodeOwners detected: ${nonCodeOwnerApprovers.join(', ')}`);
+            }
+
+            if (codeOwnerApprovals.length < 2) { // Adjust the number as per your requirement
+              core.setFailed(`At least 2 approvals are required from CodeOwners. Current approvals: ${codeOwnerApprovals.join(', ')}`);
+            }
